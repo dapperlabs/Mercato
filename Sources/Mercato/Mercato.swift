@@ -39,20 +39,20 @@ public class Mercato {
 		self.updateListenerTask = task
 	}
 	
-	//TODO: throw an error if productId are invalid
-	public func retrieveProducts(productIds: Set<String>) async throws -> [Product]
-	{
-		try await productService.retrieveProducts(productIds: productIds)
-	}
-
-        public func retrieveProduct(productId: String) async throws -> [Product]
-        {
-            if let product = try await fetchProducts(for: Set<String>([productId])).first {
-                return product
-            } else {
-                throw MercatoError.storeKit(error: StoreKitError.notAvailableInStorefront)
-            }
+    //TODO: throw an error if productId are invalid
+    public func retrieveProducts(productIds: Set<String>) async throws -> [Product]
+    {
+        try await productService.retrieveProducts(productIds: productIds)
+    }
+    
+    public func retrieveProduct(productId: String) async throws -> Product
+    {
+        if let product = try await productService.retrieveProducts(productIds: Set<String>([productId])).first {
+            return product
+        } else {
+            throw MercatoError.storeKit(error: StoreKitError.notAvailableInStorefront)
         }
+    }
 	
 	@discardableResult
 	public func purchase(product: Product, quantity: Int = 1, finishAutomatically: Bool = true, appAccountToken: UUID? = nil, simulatesAskToBuyInSandbox: Bool = false) async throws -> Purchase

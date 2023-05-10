@@ -1,43 +1,29 @@
 import Foundation
 import StoreKit
 
-public typealias TransactionUpdate = ((Transaction, _ jwsRepresentation: String) async -> ())
-
 public class Mercato {
 	
 	private var purchaseController = PurchaseController()
 	private var productService = ProductService()
-	
-	private var updateListenerTask: Task<(), Never>? = nil
-	
+		
     public init()
 	{
 		
     }
-		
-	func listenForTransactions(finishAutomatically: Bool = true, updateBlock: TransactionUpdate?)
-	{
-		let task = Task.detached
-		{
-			for await result in Transaction.updates
-			{
-				do {
-					let transaction = try checkVerified(result)
-					
-					if finishAutomatically
-					{
-						await transaction.finish()
-					}
-					
-                    await updateBlock?(transaction, result.jwsRepresentation)
-				} catch {
-					print("Transaction failed verification")
-				}
-			}
-		}
-		
-		self.updateListenerTask = task
-	}
+
+    func listenForTransactions() async -> [(Transaction, String)] {
+        var pending = [(Transaction, String)]()
+        for await result in Transaction.updates
+        {
+            do {
+                let transaction = try checkVerified(result)
+                pending.append((transaction, result.jwsRepresentation))
+            } catch {
+                print("Transaction failed verification")
+            }
+        }
+        return pending
+    }
 	
     //TODO: throw an error if productId are invalid
     public func retrieveProducts(productIds: Set<String>) async throws -> [Product]
@@ -83,26 +69,27 @@ public class Mercato {
 			throw error
 		}
 	}
-	
-	deinit {
-		updateListenerTask?.cancel()
-	}
 }
 
 extension Mercato
 {
 	fileprivate static let shared: Mercato = .init()
 	
-	public static func listenForTransactions(finishAutomatically: Bool = true, updateBlock: TransactionUpdate?)
+    public static func listenForTransactions() async -> [(Transaction, String)]
 	{
-		shared.listenForTransactions(finishAutomatically: finishAutomatically, updateBlock: updateBlock)
+		return await shared.listenForTransactions()
 	}
 	
 	public static func retrieveProducts(productIds: Set<String>) async throws -> [Product]
 	{
 		try await shared.retrieveProducts(productIds: productIds)
 	}
-	
+
+    public static func retrieveProduct(productId: String) async throws -> Product
+    {
+        try await shared.retrieveProduct(productId: productId)
+    }
+
 	@discardableResult
 	public static func purchase(product: Product,
 								quantity: Int = 1,

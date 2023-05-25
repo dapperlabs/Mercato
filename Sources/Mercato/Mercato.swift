@@ -1,28 +1,32 @@
 import Foundation
 import StoreKit
 
+public typealias TransactionUpdate = ((Transaction, String) async -> ())
+
 public class Mercato {
 	
 	private var purchaseController = PurchaseController()
 	private var productService = ProductService()
-		
-    public init()
-	{
-		
-    }
+    
+    private var updateListenerTask: Task<(), Never>? = nil
 
-    func listenForTransactions() async -> [(Transaction, String)] {
-        var pending = [(Transaction, String)]()
-        for await result in Transaction.updates
+    public init() {}
+
+    fileprivate func listenForTransactions(updateBlock: @escaping TransactionUpdate) {
+        let task = Task.detached
         {
-            do {
-                let transaction = try checkVerified(result)
-                pending.append((transaction, result.jwsRepresentation))
-            } catch {
-                print("Transaction failed verification")
+            for await result in Transaction.updates
+            {
+                do {
+                    let transaction = try checkVerified(result)
+                    await updateBlock(transaction, result.jwsRepresentation)
+                } catch {
+                    print("Transaction failed verification")
+                }
             }
         }
-        return pending
+        
+        self.updateListenerTask = task
     }
 	
     //TODO: throw an error if productId are invalid
@@ -69,17 +73,21 @@ public class Mercato {
 			throw error
 		}
 	}
+    
+    deinit {
+        updateListenerTask?.cancel()
+    }
 }
 
 extension Mercato
 {
 	fileprivate static let shared: Mercato = .init()
 	
-    public static func listenForTransactions() async -> [(Transaction, String)]
-	{
-		return await shared.listenForTransactions()
-	}
-	
+    public static func listenForTransactions(updateBlock: @escaping TransactionUpdate)
+    {
+        shared.listenForTransactions(updateBlock: updateBlock)
+    }
+
 	public static func retrieveProducts(productIds: Set<String>) async throws -> [Product]
 	{
 		try await shared.retrieveProducts(productIds: productIds)

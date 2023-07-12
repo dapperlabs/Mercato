@@ -15,7 +15,7 @@ public class Mercato {
     fileprivate func listenForTransactions(updateBlock: @escaping TransactionUpdate) {
         let task = Task.detached
         {
-            for await result in Transaction.updates
+            for await result in Transaction.unfinished
             {
                 do {
                     let transaction = try checkVerified(result)

@@ -105,6 +105,7 @@ extension Mercato
         shared.listenForUnfinishedTransactions(updateBlock: updateBlock)
     }
     
+    /// Any unfinished transactions will be emitted when you first iterate the sequence.
     public static func listenForTransactionUpdates(updateBlock: @escaping TransactionUpdate)
     {
         shared.listenForTransactionUpdates(updateBlock: updateBlock)

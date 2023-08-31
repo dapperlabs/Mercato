@@ -12,10 +12,27 @@ public class Mercato {
 
     public init() {}
 
-    fileprivate func listenForTransactions(updateBlock: @escaping TransactionUpdate) {
+    fileprivate func listenForUnfinishedTransactions(updateBlock: @escaping TransactionUpdate) {
         let task = Task.detached
         {
             for await result in Transaction.unfinished
+            {
+                do {
+                    let transaction = try checkVerified(result)
+                    await updateBlock(transaction, result.jwsRepresentation)
+                } catch {
+                    print("Transaction failed verification")
+                }
+            }
+        }
+        
+        self.updateListenerTask = task
+    }
+    
+    fileprivate func listenForTransactionUpdates(updateBlock: @escaping TransactionUpdate) {
+        let task = Task.detached
+        {
+            for await result in Transaction.updates
             {
                 do {
                     let transaction = try checkVerified(result)
@@ -83,9 +100,14 @@ extension Mercato
 {
 	fileprivate static let shared: Mercato = .init()
 	
-    public static func listenForTransactions(updateBlock: @escaping TransactionUpdate)
+    public static func listenForUnfinishedTransactions(updateBlock: @escaping TransactionUpdate)
     {
-        shared.listenForTransactions(updateBlock: updateBlock)
+        shared.listenForUnfinishedTransactions(updateBlock: updateBlock)
+    }
+    
+    public static func listenForTransactionUpdates(updateBlock: @escaping TransactionUpdate)
+    {
+        shared.listenForTransactionUpdates(updateBlock: updateBlock)
     }
 
 	public static func retrieveProducts(productIds: Set<String>) async throws -> [Product]

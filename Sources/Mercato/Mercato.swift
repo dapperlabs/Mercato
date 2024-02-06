@@ -11,7 +11,7 @@ public class Mercato {
     private var updateListenerTask: Task<(), Never>? = nil
 
     public init() {}
-
+    
     fileprivate func listenForUnfinishedTransactions(updateBlock: @escaping TransactionUpdate) {
         let task = Task.detached
         {
@@ -188,6 +188,19 @@ extension Mercato
     public static func activeSubscriptionIds(onlyRenewable: Bool = true) async throws -> [String]
     {
         return try await activeSubscriptions(onlyRenewable: onlyRenewable).map { $0.productID}
+    }
+    
+    public static func fetchLatestTransaction(for productId: String) async throws -> (transaction: Transaction, jwsRepresentation: String) {
+        let result = await Transaction.latest(for: productId)
+        guard let result else {
+            throw MercatoError.failedVerification
+        }
+        switch result {
+        case .verified(let verifiedTransaction):
+            return (transaction: verifiedTransaction, jwsRepresentation: result.jwsRepresentation)
+        case .unverified:
+            throw MercatoError.failedVerification
+        }
     }
 }
 
